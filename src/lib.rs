@@ -56,8 +56,6 @@ pub struct TaggedArray<'a,I,T : 'a> {
     tagged_array: &'a [T],
 }
 
-// Need an indexable trait
-
 pub trait TaggedIndexable {
     fn tag_index(&self) -> usize;
 }
@@ -66,10 +64,20 @@ pub fn tagged_index<'a, I : TaggedIndexable, T : Copy>(arr : &TaggedArray<'a, I,
     arr.tagged_array[ix.tag_index()]
 }
 
+// Clauses
+
+pub struct Clause {
+    activity: f64,
+    lit_count: i16,
+    flags: i16,
+    literals: [Literal],
+}
+
 pub struct SolverEnv<'a> {
     assignment: TaggedArray<'a,Variable, Value>,
     variable_levels: TaggedArray<'a,Variable, i32>,
     variable_activity: TaggedArray<'a,Variable, f64>,
+//    decision_reasons: TaggedArray<'a,Variable, Option<'a &Clause>>,
 }
 
 #[test]
