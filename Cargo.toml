@@ -1,0 +1,4 @@
+[package]
+name = "satir"
+version = "0.1.0"
+authors = ["Tristan Ravitch <tristan@nochair.net>"]
