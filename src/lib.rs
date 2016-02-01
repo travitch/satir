@@ -58,11 +58,11 @@ pub struct TaggedArray<'a,I,T : 'a> {
 
 // Need an indexable trait
 
-trait TaggedIndexable {
-    fn tag_index(&self) -> i32;
+pub trait TaggedIndexable {
+    fn tag_index(&self) -> usize;
 }
 
-pub fn tagged_index<I : TaggedIndexable, T>(arr : &TaggedArray<'a, I, T : 'a>, ix : I) -> T {
+pub fn tagged_index<'a, I : TaggedIndexable, T : Copy>(arr : &TaggedArray<'a, I, T>, ix : I) -> T {
     arr.tagged_array[ix.tag_index()]
 }
 
