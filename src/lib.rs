@@ -60,7 +60,8 @@ pub trait TaggedIndexable {
     fn tag_index(&self) -> usize;
 }
 
-pub fn tagged_index<'a, I : TaggedIndexable, T : Copy>(arr : &TaggedArray<'a, I, T>, ix : I) -> T {
+pub fn tagged_index<'a, I, T>(arr : &TaggedArray<'a, I, T>, ix : I) -> T
+    where I : TaggedIndexable, T : Copy {
     arr.tagged_array[ix.tag_index()]
 }
 
