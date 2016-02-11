@@ -1,4 +1,5 @@
-use std::marker::PhantomData;
+mod tagged;
+// use tagged::array;
 
 pub struct Variable(i32);
 pub struct Literal(i32);
@@ -49,22 +50,6 @@ pub fn variable(l : Literal) -> Variable {
     Variable(lnum >> 1)
 }
 
-// Type-safe array indexing
-
-pub struct TaggedArray<'a,I,T : 'a> {
-    index_type: PhantomData<I>,
-    tagged_array: &'a [T],
-}
-
-pub trait TaggedIndexable {
-    fn tag_index(&self) -> usize;
-}
-
-pub fn tagged_index<'a, I, T>(arr : &TaggedArray<'a, I, T>, ix : I) -> T
-    where I : TaggedIndexable, T : Copy {
-    arr.tagged_array[ix.tag_index()]
-}
-
 // Clauses
 
 pub struct Clause {
@@ -75,9 +60,9 @@ pub struct Clause {
 }
 
 pub struct SolverEnv<'a> {
-    assignment: TaggedArray<'a,Variable, Value>,
-    variable_levels: TaggedArray<'a,Variable, i32>,
-    variable_activity: TaggedArray<'a,Variable, f64>,
+    assignment: tagged::TaggedArray<'a,Variable, Value>,
+    variable_levels: tagged::TaggedArray<'a,Variable, i32>,
+    variable_activity: tagged::TaggedArray<'a,Variable, f64>,
 //    decision_reasons: TaggedArray<'a,Variable, Option<'a &Clause>>,
 }
 
