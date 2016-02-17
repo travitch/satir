@@ -9,6 +9,9 @@ pub enum PropagationResult {
     NewWatch,
 }
 
+pub fn remove(con: &Constraint, env: &mut env::SolverEnv) -> () {
+    con.remove(con, env)
+}
 
 pub trait Constraint {
     fn remove(&self, con: &Constraint, env: &mut env::SolverEnv) -> ();
