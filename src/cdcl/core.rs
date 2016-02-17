@@ -1,6 +1,18 @@
+use tagged;
+
+#[derive(Clone,Copy)]
 pub struct Variable(i32);
+#[derive(Clone,Copy)]
 pub struct Literal(i32);
+#[derive(Clone,Copy)]
 pub struct Value(i8);
+
+impl tagged::TaggedIndexable for Variable {
+    fn as_index(&self) -> usize {
+        let &Variable(vnum) = self;
+        vnum as usize
+    }
+}
 
 // Variables
 
