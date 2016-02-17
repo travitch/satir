@@ -14,6 +14,13 @@ impl tagged::TaggedIndexable for Variable {
     }
 }
 
+impl tagged::TaggedIndexable for Literal {
+    fn as_index(&self) -> usize {
+        let &Literal(lnum) = self;
+        lnum as usize
+    }
+}
+
 // Variables
 
 pub const FIRST_VARIABLE : Variable = Variable(0);
