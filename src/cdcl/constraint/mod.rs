@@ -9,8 +9,9 @@ pub enum PropagationResult {
     NewWatch,
 }
 
+
 pub trait Constraint {
-    fn remove(&self, env: &mut env::SolverEnv) -> ();
+    fn remove(&self, con: &Constraint, env: &mut env::SolverEnv) -> ();
     fn propagate(&self, env: &mut env::SolverEnv, core::Literal) -> PropagationResult;
     fn simplify(&self, env: &env::SolverEnv) -> bool;
     fn reason(&self, env: &env::SolverEnv, Option<core::Literal>) -> Vec<core::Literal>;
