@@ -19,7 +19,7 @@ pub struct SolverRoot {
 pub struct SolverEnv<'a> {
     root: &'a SolverRoot,
     pub decision_reasons: tagged::TaggedVec<core::Variable, Option<&'a constraint::Constraint>>,
-    watchlist: tagged::TaggedVec<core::Literal, Vec<&'a constraint::Constraint>>,
+    pub watchlist: tagged::TaggedVec<core::Literal, Vec<&'a constraint::Constraint>>,
 }
 
 /* Note [SplitStruct]
