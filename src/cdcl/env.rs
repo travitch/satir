@@ -14,10 +14,11 @@ pub struct SolverRoot {
     problem_constraints: Vec<Box<constraint::Constraint>>,
     learned_constraints: Vec<Box<constraint::Constraint>>,
     propagation_queue: DecisionIndex,
+    constraint_id_src: u64,
 }
 
 pub struct SolverEnv<'a> {
-    root: &'a SolverRoot,
+    pub root: &'a SolverRoot,
     pub decision_reasons: tagged::TaggedVec<core::Variable, Option<&'a constraint::Constraint>>,
     pub watchlist: tagged::TaggedVec<core::Literal, Vec<&'a constraint::Constraint>>,
 }
