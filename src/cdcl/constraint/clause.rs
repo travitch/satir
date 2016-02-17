@@ -17,10 +17,10 @@ impl constraint::Constraint for Clause {
     fn remove(&self, con : &constraint::Constraint, env: &mut env::SolverEnv) -> () {
         if self.lit_count >= 1 {
             watchlist::unwatch_literal(env, con, self.literals[0]);
-        }
 
-        if self.lit_count >= 2 {
-            watchlist::unwatch_literal(env, con, self.literals[1]);
+            if self.lit_count >= 2 {
+                watchlist::unwatch_literal(env, con, self.literals[1]);
+            }
         }
     }
 
