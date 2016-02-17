@@ -1,4 +1,3 @@
-use std::any::Any;
 use cdcl::core;
 use cdcl::env;
 
@@ -18,4 +17,5 @@ pub trait Constraint {
     fn locked(&self, env: &env::SolverEnv) -> bool;
     fn activity(&self) -> f64;
     fn set_activity(&mut self, f64) -> ();
+    fn unique_id(&self) -> u64;
 }
