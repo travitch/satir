@@ -1,5 +1,3 @@
-use tagged;
-
 use cdcl::core;
 use cdcl::constraint;
 use cdcl::env;
@@ -8,8 +6,8 @@ use cdcl::watchlist;
 pub struct Clause {
     id: u64,
     activity: f64,
-    lit_count: i16,
-    flags: i16,
+    lit_count: u16,
+    flags: u16,
     literals: [core::Literal],
 }
 
@@ -32,7 +30,8 @@ impl constraint::Constraint for Clause {
         unimplemented!();
     }
 
-    fn reason(&self, env: &env::SolverEnv, conflict_lit : Option<core::Literal>) -> Vec<core::Literal> {
+    fn reason(&mut self, env: &mut env::SolverEnv, conflict_lit : Option<core::Literal>) -> Vec<core::Literal> {
+        bump_clause_activity(env, self);
         unimplemented!();
     }
 
@@ -55,5 +54,22 @@ impl constraint::Constraint for Clause {
 
     fn unique_id(&self) -> u64 {
         self.id
+    }
+}
+
+const LEARNED_MASK : u16 = 0x1;
+
+fn is_learned(cl : &Clause) -> bool {
+    cl.flags & LEARNED_MASK == LEARNED_MASK
+}
+
+fn bump_clause_activity(env: &mut env::SolverEnv, cl : &mut Clause) -> () {
+    if ! is_learned(cl) {
+        return;
+    }
+
+    cl.activity += env.root.constraint_increment;
+    if cl.activity > env::ACTIVITY_CAP {
+        env::rescale_activity(env);
     }
 }

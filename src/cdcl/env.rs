@@ -15,12 +15,20 @@ pub struct SolverRoot {
     learned_constraints: Vec<Box<constraint::Constraint>>,
     propagation_queue: DecisionIndex,
     constraint_id_src: u64,
+    pub constraint_increment: f64,
+    variable_increment: f64,
 }
 
 pub struct SolverEnv<'a> {
     pub root: &'a SolverRoot,
     pub decision_reasons: tagged::TaggedVec<core::Variable, Option<&'a constraint::Constraint>>,
     pub watchlist: tagged::TaggedVec<core::Literal, Vec<&'a constraint::Constraint>>,
+}
+
+pub const ACTIVITY_CAP : f64 = 1e100;
+
+pub fn rescale_activity(env : &mut SolverEnv) -> () {
+    unimplemented!();
 }
 
 /* Note [SplitStruct]

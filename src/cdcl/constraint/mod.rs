@@ -17,7 +17,7 @@ pub trait Constraint {
     fn remove(&self, con: &Constraint, env: &mut env::SolverEnv) -> ();
     fn propagate(&self, env: &mut env::SolverEnv, core::Literal) -> PropagationResult;
     fn simplify(&self, env: &env::SolverEnv) -> bool;
-    fn reason(&self, env: &env::SolverEnv, Option<core::Literal>) -> Vec<core::Literal>;
+    fn reason(&mut self, env: &mut env::SolverEnv, Option<core::Literal>) -> Vec<core::Literal>;
     fn locked(&self, env: &env::SolverEnv) -> bool;
     fn activity(&self) -> f64;
     fn set_activity(&mut self, f64) -> ();

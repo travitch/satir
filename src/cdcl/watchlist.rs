@@ -2,8 +2,6 @@ use cdcl::constraint;
 use cdcl::core;
 use cdcl::env;
 
-use tagged;
-
 pub fn unwatch_literal(env : &mut env::SolverEnv, con : &constraint::Constraint, lit : core::Literal) -> () {
     let ref mut watchers = &mut env.watchlist[lit];
     let mut rem_ix = 0;
