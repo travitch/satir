@@ -127,7 +127,7 @@ fn is_learned(cl : &Clause) -> bool {
 
 fn bump_clause_activity(env: &mut env::SolverEnv, cl : &mut Clause) -> () {
     if is_learned(cl) {
-        cl.activity += env.root.constraint_increment;
+        cl.activity += env.constraint_increment;
         if cl.activity > env::ACTIVITY_CAP {
             env::rescale_activity(env);
         }
