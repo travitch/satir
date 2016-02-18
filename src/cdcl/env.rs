@@ -27,11 +27,15 @@ pub struct SolverEnv<'a> {
 
 pub const ACTIVITY_CAP : f64 = 1e100;
 
-pub fn rescale_activity(env : &mut SolverEnv) -> () {
+pub fn rescale_activity(env: &mut SolverEnv) -> () {
     unimplemented!();
 }
 
-pub fn assert_literal(env : &mut SolverEnv, lit : core::Literal, reason : Option<&constraint::Constraint>) -> () {
+pub fn assert_literal(env: &mut SolverEnv, lit: core::Literal, reason: Option<&constraint::Constraint>) -> () {
+    unimplemented!();
+}
+
+pub fn try_assert_literal(env: &mut SolverEnv, lit: core::Literal, reason: Option<&constraint::Constraint>) -> bool {
     unimplemented!();
 }
 

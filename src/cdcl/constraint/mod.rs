@@ -15,7 +15,7 @@ pub fn remove<'a>(con: &'a Constraint, env: &mut env::SolverEnv<'a>) -> () {
 
 pub trait Constraint {
     fn remove<'a>(&self, con: &'a Constraint, env: &mut env::SolverEnv<'a>) -> ();
-    fn propagate(&mut self, env: &mut env::SolverEnv, core::Literal) -> PropagationResult;
+    fn propagate<'a>(&mut self, con: &'a Constraint, env: &mut env::SolverEnv<'a>, core::Literal) -> PropagationResult;
     fn simplify<'a>(&mut self, con: &'a Constraint, env: &mut env::SolverEnv<'a>) -> bool;
     fn reason(&mut self, env: &mut env::SolverEnv, Option<core::Literal>) -> &[core::Literal];
     fn locked(&self, env: &env::SolverEnv) -> bool;

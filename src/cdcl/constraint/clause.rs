@@ -22,7 +22,7 @@ impl constraint::Constraint for Clause {
         }
     }
 
-    fn propagate(&mut self, env: &mut env::SolverEnv, false_lit : core::Literal) -> constraint::PropagationResult {
+    fn propagate<'a>(&mut self, con : &'a constraint::Constraint, env: &mut env::SolverEnv<'a>, false_lit : core::Literal) -> constraint::PropagationResult {
         let other_lit = normalize_watched_literals(self, false_lit);
         let other_val = env::literal_value(env, other_lit);
 
@@ -30,10 +30,27 @@ impl constraint::Constraint for Clause {
             return constraint::PropagationResult::KeepWatch;
         }
 
-        for ix in (0..self.lit_count - 1).rev() {
+        let n_lits = self.lit_count as usize;
+        for ix in (2..n_lits - 1).rev() {
+            let lit = self.literals[ix];
+            let lit_val = env::literal_value(env, lit);
+            if lit_val == core::LIFTED_FALSE {
+                continue;
+            }
 
+            swap_literals(self, 1, ix);
+            watchlist::watch_literal(env, con, lit);
+            return constraint::PropagationResult::NewWatch;
         }
-        unimplemented!();
+
+        // There was no new literal to watch, so we have a unit
+        // clause.  We can try to assert the resulting literal, which
+        // could actually fail.
+        if env::try_assert_literal(env, other_lit, Some(con)) {
+            return constraint::PropagationResult::KeepWatch;
+        } else {
+            return constraint::PropagationResult::Conflict;
+        }
     }
 
     /*
