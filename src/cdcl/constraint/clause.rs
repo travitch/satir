@@ -108,5 +108,16 @@ fn bump_clause_activity(env: &mut env::SolverEnv, cl : &mut Clause) -> () {
 }
 
 fn remove_literal(cl : &mut Clause, ix : usize) -> Option<core::Literal> {
-    unimplemented!();
+    let lc = cl.lit_count as usize;
+    if ix >= lc {
+        return None;
+    } else if ix == lc - 1 {
+        cl.lit_count -= 1;
+        return None;
+    } else {
+        let new_lit = cl.literals[lc - 1];
+        cl.lit_count -= 1;
+        cl.literals[ix] = new_lit;
+        return Some(new_lit);
+    }
 }
