@@ -17,9 +17,26 @@ pub trait Constraint {
     fn remove(&self, con: &Constraint, env: &mut env::SolverEnv) -> ();
     fn propagate(&self, env: &mut env::SolverEnv, core::Literal) -> PropagationResult;
     fn simplify(&self, env: &env::SolverEnv) -> bool;
-    fn reason(&mut self, env: &mut env::SolverEnv, Option<core::Literal>) -> Vec<core::Literal>;
+    fn reason(&mut self, env: &mut env::SolverEnv, Option<core::Literal>) -> &[core::Literal];
     fn locked(&self, env: &env::SolverEnv) -> bool;
     fn activity(&self) -> f64;
     fn set_activity(&mut self, f64) -> ();
     fn unique_id(&self) -> u64;
 }
+
+/* Note [Constraint Interface]
+
+This will have to evolve as I learn.
+
+It isn't clear what the most useful return type for `reason` is.  The
+slice is useful for clauses, but might not be possible for equality
+constraints.  An iterator might be a good return type.
+
+The `unique_id` method is unfortunate.  It is used to check for
+constraint identity, which proved difficult to do directly on trait
+objects (especially when one of the trait objects is unsized).  The
+current setup requires care in assigning ids (see the id source in
+env).  This places a limit on the total number of constraints that are
+ever created.  Granted, that limit is quite high (2^64).
+
+*/

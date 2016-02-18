@@ -30,9 +30,13 @@ impl constraint::Constraint for Clause {
         unimplemented!();
     }
 
-    fn reason(&mut self, env: &mut env::SolverEnv, conflict_lit : Option<core::Literal>) -> Vec<core::Literal> {
+    fn reason(&mut self, env: &mut env::SolverEnv, conflict_lit : Option<core::Literal>) -> &[core::Literal] {
         bump_clause_activity(env, self);
-        unimplemented!();
+        let start_index : usize = match conflict_lit {
+            None => 0,
+            Some(_) => 1,
+        };
+        &self.literals[start_index .. self.lit_count as usize]
     }
 
     fn locked(&self, env: &env::SolverEnv) -> bool {
