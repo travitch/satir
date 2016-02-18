@@ -20,7 +20,7 @@ pub struct SolverRoot {
 }
 
 pub struct SolverEnv<'a> {
-    pub root: &'a SolverRoot,
+    pub root: &'a mut SolverRoot,
     pub decision_reasons: tagged::TaggedVec<core::Variable, Option<&'a constraint::Constraint>>,
     pub watchlist: tagged::TaggedVec<core::Literal, Vec<&'a constraint::Constraint>>,
 }
@@ -31,8 +31,23 @@ pub fn rescale_activity(env: &mut SolverEnv) -> () {
     unimplemented!();
 }
 
-pub fn assert_literal(env: &mut SolverEnv, lit: core::Literal, reason: Option<&constraint::Constraint>) -> () {
-    unimplemented!();
+pub fn decision_level(env: &SolverEnv) -> i32 {
+    env.root.decision_boundaries.len() as i32
+}
+
+pub fn assign_variable_value<'a>(env: &mut SolverEnv<'a>, var: core::Variable, val: core::Value, reason: Option<&'a constraint::Constraint>) -> () {
+    let dl = decision_level(env);
+    env.decision_reasons[var] = reason;
+    let root = &mut env.root;
+    root.assignment[var] = val;
+    root.variable_levels[var] = dl;
+}
+
+pub fn assert_literal<'a>(env: &mut SolverEnv<'a>, lit: core::Literal, reason: Option<&'a constraint::Constraint>) -> () {
+    let var = core::variable(lit);
+    let val = core::satisfy_literal(lit);
+    assign_variable_value(env, var, val, reason);
+    env.root.decision_stack.push(lit);
 }
 
 pub fn try_assert_literal(env: &mut SolverEnv, lit: core::Literal, reason: Option<&constraint::Constraint>) -> bool {

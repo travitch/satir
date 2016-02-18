@@ -72,6 +72,11 @@ pub fn lit_val(l : Literal, v : Value) -> Value {
     Value(val ^ ((lval & 1) as i8))
 }
 
+pub fn satisfy_literal(l: Literal) -> Value {
+    let Literal(lval) = l;
+    Value((lval & 1) as i8)
+}
+
 pub const LIFTED_FALSE : Value = Value(1);
 pub const LIFTED_TRUE : Value = Value(0);
 pub const UNASSIGNED : Value = Value(2);

@@ -35,3 +35,9 @@ pub struct TaggedVec<I,T> {
     index_type: PhantomData<I>,
     tagged_vec: Vec<T>,
 }
+
+impl<I,T> TaggedVec<I,T> {
+    pub fn push(&mut self, t: T) -> () {
+        self.tagged_vec.push(t);
+    }
+}
