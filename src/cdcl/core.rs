@@ -2,7 +2,7 @@ use tagged;
 
 #[derive(Clone,Copy)]
 pub struct Variable(i32);
-#[derive(Clone,Copy)]
+#[derive(Clone,Copy,Eq,Ord,PartialEq,PartialOrd)]
 pub struct Literal(i32);
 #[derive(Clone,Copy,PartialOrd,PartialEq)]
 pub struct Value(i8);

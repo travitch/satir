@@ -22,7 +22,17 @@ impl constraint::Constraint for Clause {
         }
     }
 
-    fn propagate(&self, env: &mut env::SolverEnv, lit : core::Literal) -> constraint::PropagationResult {
+    fn propagate(&mut self, env: &mut env::SolverEnv, false_lit : core::Literal) -> constraint::PropagationResult {
+        let other_lit = normalize_watched_literals(self, false_lit);
+        let other_val = env::literal_value(env, other_lit);
+
+        if other_val == core::LIFTED_TRUE {
+            return constraint::PropagationResult::KeepWatch;
+        }
+
+        for ix in (0..self.lit_count - 1).rev() {
+
+        }
         unimplemented!();
     }
 
@@ -120,4 +130,21 @@ fn remove_literal(cl : &mut Clause, ix : usize) -> Option<core::Literal> {
         cl.literals[ix] = new_lit;
         return Some(new_lit);
     }
+}
+
+fn normalize_watched_literals(cl : &mut Clause, false_lit : core::Literal) -> core::Literal {
+    let l0 = cl.literals[0];
+    let l1 = cl.literals[1];
+    if l1 == false_lit {
+        return l0;
+    } else {
+        swap_literals(cl, 0, 1);
+        return l1;
+    }
+}
+
+fn swap_literals(cl : &mut Clause, ix1 : usize, ix2 : usize) -> () {
+    let l1 = cl.literals[ix1];
+    cl.literals[ix1] = cl.literals[ix2];
+    cl.literals[ix2] = l1;
 }
