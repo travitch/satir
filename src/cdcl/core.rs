@@ -4,7 +4,7 @@ use tagged;
 pub struct Variable(i32);
 #[derive(Clone,Copy)]
 pub struct Literal(i32);
-#[derive(Clone,Copy)]
+#[derive(Clone,Copy,PartialOrd,PartialEq)]
 pub struct Value(i8);
 
 impl tagged::TaggedIndexable for Variable {
@@ -66,3 +66,16 @@ pub fn variable(l : Literal) -> Variable {
     Variable(lnum >> 1)
 }
 
+pub fn lit_val(l : Literal, v : Value) -> Value {
+    let Literal(lval) = l;
+    let Value(val) = v;
+    Value(val ^ ((lval & 1) as i8))
+}
+
+pub const LIFTED_FALSE : Value = Value(1);
+pub const LIFTED_TRUE : Value = Value(0);
+pub const UNASSIGNED : Value = Value(2);
+
+pub fn is_unassigned(v : Value) -> bool {
+    v >= UNASSIGNED
+}

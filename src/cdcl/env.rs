@@ -31,6 +31,15 @@ pub fn rescale_activity(env : &mut SolverEnv) -> () {
     unimplemented!();
 }
 
+pub fn assert_literal(env : &mut SolverEnv, lit : core::Literal, reason : Option<&constraint::Constraint>) -> () {
+    unimplemented!();
+}
+
+pub fn literal_value(env : &SolverEnv, lit : core::Literal) -> core::Value {
+    let var_val = env.root.assignment[core::variable(lit)];
+    core::lit_val(lit, var_val)
+}
+
 /* Note [SplitStruct]
 
 The SolverEnv struct is split in two because rust does not support

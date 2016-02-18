@@ -9,14 +9,14 @@ pub enum PropagationResult {
     NewWatch,
 }
 
-pub fn remove(con: &Constraint, env: &mut env::SolverEnv) -> () {
+pub fn remove<'a>(con: &'a Constraint, env: &mut env::SolverEnv<'a>) -> () {
     con.remove(con, env)
 }
 
 pub trait Constraint {
-    fn remove(&self, con: &Constraint, env: &mut env::SolverEnv) -> ();
+    fn remove<'a>(&self, con: &'a Constraint, env: &mut env::SolverEnv<'a>) -> ();
     fn propagate(&self, env: &mut env::SolverEnv, core::Literal) -> PropagationResult;
-    fn simplify(&self, env: &env::SolverEnv) -> bool;
+    fn simplify<'a>(&mut self, con: &'a Constraint, env: &mut env::SolverEnv<'a>) -> bool;
     fn reason(&mut self, env: &mut env::SolverEnv, Option<core::Literal>) -> &[core::Literal];
     fn locked(&self, env: &env::SolverEnv) -> bool;
     fn activity(&self) -> f64;

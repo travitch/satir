@@ -12,7 +12,7 @@ pub struct Clause {
 }
 
 impl constraint::Constraint for Clause {
-    fn remove(&self, con : &constraint::Constraint, env: &mut env::SolverEnv) -> () {
+    fn remove<'a>(&self, con : &'a constraint::Constraint, env: &mut env::SolverEnv<'a>) -> () {
         if self.lit_count >= 1 {
             watchlist::unwatch_literal(env, con, self.literals[0]);
 
@@ -26,8 +26,39 @@ impl constraint::Constraint for Clause {
         unimplemented!();
     }
 
-    fn simplify(&self, env: &env::SolverEnv) -> bool {
-        unimplemented!();
+    /*
+
+    Remove the false literals from the clause.  If the clause is
+    satisfied, return true (so that it will be removed).
+
+    */
+    fn simplify<'a>(&mut self, con : &'a constraint::Constraint, env: &mut env::SolverEnv<'a>) -> bool {
+        for ix in (0..self.lit_count as usize).rev() {
+            let l = self.literals[ix];
+            let val = env::literal_value(env, l);
+            if val == core::LIFTED_FALSE {
+                // l is known to be false, so we can remove it from
+                // the clause.
+                let o_new_lit = remove_literal(self, ix);
+                if ix < 2 {
+                    match o_new_lit {
+                        None => (),
+                        Some(new_lit) => watchlist::watch_literal(env, con, new_lit),
+                    }
+                }
+            } else if val == core::LIFTED_TRUE {
+                return true;
+            }
+        }
+
+        // If we only have a single literal remaining, we must assert it,
+        // which means that we must also have it removed
+        if self.lit_count == 1 {
+            env::assert_literal(env, self.literals[0], None);
+            return true;
+        } else {
+            return false;
+        }
     }
 
     fn reason(&mut self, env: &mut env::SolverEnv, conflict_lit : Option<core::Literal>) -> &[core::Literal] {
@@ -74,4 +105,8 @@ fn bump_clause_activity(env: &mut env::SolverEnv, cl : &mut Clause) -> () {
             env::rescale_activity(env);
         }
     }
+}
+
+fn remove_literal(cl : &mut Clause, ix : usize) -> Option<core::Literal> {
+    unimplemented!();
 }
