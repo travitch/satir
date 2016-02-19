@@ -40,4 +40,8 @@ impl<I,T> TaggedVec<I,T> {
     pub fn push(&mut self, t: T) -> () {
         self.tagged_vec.push(t);
     }
+
+    pub fn len(&self) -> usize {
+        self.tagged_vec.len()
+    }
 }

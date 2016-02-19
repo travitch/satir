@@ -31,6 +31,11 @@ pub fn rescale_activity(env: &mut SolverEnv) -> () {
     unimplemented!();
 }
 
+pub fn increment_decision_level(env: &mut SolverEnv) -> () {
+    let dl = env.decision_stack.len();
+    env.decision_boundaries.push(DecisionIndex(dl));
+}
+
 pub fn decision_level(env: &SolverEnv) -> i32 {
     env.decision_boundaries.len() as i32
 }
@@ -42,6 +47,12 @@ pub fn assign_variable_value<'a>(env: &mut SolverEnv<'a>, var: core::Variable, v
     env.variable_levels[var] = dl;
 }
 
+pub fn reset_variable(env: &mut SolverEnv, var: core::Variable) -> () {
+    env.assignment[var] = core::UNASSIGNED;
+    env.variable_levels[var] = -1;
+    env.decision_reasons[var] = None;
+}
+
 pub fn assert_literal<'a>(env: &mut SolverEnv<'a>, lit: core::Literal, reason: Option<&'a constraint::Constraint>) -> () {
     let var = core::variable(lit);
     let val = core::satisfy_literal(lit);
@@ -49,8 +60,17 @@ pub fn assert_literal<'a>(env: &mut SolverEnv<'a>, lit: core::Literal, reason: O
     env.decision_stack.push(lit);
 }
 
-pub fn try_assert_literal(env: &mut SolverEnv, lit: core::Literal, reason: Option<&constraint::Constraint>) -> bool {
-    unimplemented!();
+pub fn try_assert_literal<'a>(env: &mut SolverEnv<'a>, lit: core::Literal, reason: Option<&'a constraint::Constraint>) -> bool {
+    let var = core::variable(lit);
+    let val = core::satisfy_literal(lit);
+    let cur_val = env.assignment[var];
+    if cur_val != core::UNASSIGNED {
+        return cur_val == val;
+    } else {
+        assign_variable_value(env, var, val, reason);
+        env.decision_stack.push(lit);
+        return true;
+    }
 }
 
 pub fn literal_value(env : &SolverEnv, lit : core::Literal) -> core::Value {
