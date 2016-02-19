@@ -22,7 +22,7 @@ pub struct SolverEnv<'a> {
     variable_activity: tagged::TaggedVec<core::Variable, f64>,
     variable_levels: tagged::TaggedVec<core::Variable, i32>,
     variable_increment: f64,
-    pub watchlist: tagged::TaggedVec<core::Literal, Vec<&'a constraint::Constraint>>,
+    watchlist: tagged::TaggedVec<core::Literal, Vec<&'a constraint::Constraint>>,
 }
 
 pub const ACTIVITY_CAP : f64 = 1e100;
@@ -76,6 +76,29 @@ pub fn try_assert_literal<'a>(env: &mut SolverEnv<'a>, lit: core::Literal, reaso
 pub fn literal_value(env : &SolverEnv, lit : core::Literal) -> core::Value {
     let var_val = env.assignment[core::variable(lit)];
     core::lit_val(lit, var_val)
+}
+
+pub fn unwatch_literal(env : &mut SolverEnv, con : &constraint::Constraint, lit : core::Literal) -> () {
+    let ref mut watchers = &mut env.watchlist[lit];
+    let mut rem_ix = 0;
+    let mut found_con = false;
+    for (ix, constraint) in watchers.iter().enumerate() {
+        if constraint.unique_id() == con.unique_id() {
+            rem_ix = ix;
+            found_con = true;
+            break;
+        }
+    }
+
+    if !found_con {
+        panic!("No constraint found in unwatch_literal");
+    }
+
+    watchers.swap_remove(rem_ix);
+}
+
+pub fn watch_literal<'a>(env : &mut SolverEnv<'a>, con : &'a constraint::Constraint, lit : core::Literal) -> () {
+    env.watchlist[lit].push(con);
 }
 
 /* Note [SplitStruct]

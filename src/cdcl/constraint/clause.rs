@@ -1,7 +1,6 @@
 use cdcl::core;
 use cdcl::constraint;
 use cdcl::env;
-use cdcl::watchlist;
 
 pub struct Clause {
     id: u64,
@@ -14,10 +13,10 @@ pub struct Clause {
 impl constraint::Constraint for Clause {
     fn remove<'a>(&self, con : &'a constraint::Constraint, env: &mut env::SolverEnv<'a>) -> () {
         if self.lit_count >= 1 {
-            watchlist::unwatch_literal(env, con, self.literals[0]);
+            env::unwatch_literal(env, con, self.literals[0]);
 
             if self.lit_count >= 2 {
-                watchlist::unwatch_literal(env, con, self.literals[1]);
+                env::unwatch_literal(env, con, self.literals[1]);
             }
         }
     }
@@ -39,7 +38,7 @@ impl constraint::Constraint for Clause {
             }
 
             swap_literals(self, 1, ix);
-            watchlist::watch_literal(env, con, lit);
+            env::watch_literal(env, con, lit);
             return constraint::PropagationResult::NewWatch;
         }
 
@@ -70,7 +69,7 @@ impl constraint::Constraint for Clause {
                 if ix < 2 {
                     match o_new_lit {
                         None => (),
-                        Some(new_lit) => watchlist::watch_literal(env, con, new_lit),
+                        Some(new_lit) => env::watch_literal(env, con, new_lit),
                     }
                 }
             } else if val == core::LIFTED_TRUE {
