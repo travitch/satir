@@ -1,0 +1,71 @@
+use slice_dst;
+
+use crate::satir::core;
+use crate::satir::constraint;
+
+/// Fixed-length clause metadata
+pub struct ClauseHeader {
+    pub id : u64,
+    pub lit_count : usize,
+    pub activity : f64
+}
+
+/// A SAT clause
+///
+/// Note that the literals are inline in the object, which means it is not
+/// sized. As a result, clauses must be stored in a box. However, we need to do
+/// that anyway because all constraints must be trait objects.
+///
+/// Since the `Box` is always in this structure, we are able to have a Vec<Clause>
+pub struct Clause(Box<slice_dst::SliceWithHeader<ClauseHeader, core::Literal>>);
+
+impl Clause {
+    pub fn new<I>(head : ClauseHeader, lits : I) -> Self
+    where
+        I : IntoIterator<Item = core::Literal>,
+        I::IntoIter : ExactSizeIterator,
+    {
+        Clause(slice_dst::SliceWithHeader::new::<Box<_>, I>(head, lits).into())
+    }
+
+    pub fn lit_count(&self) -> usize {
+        self.0.header.lit_count
+    }
+}
+
+// Note: Morally, `Clause` is this type:
+//
+// pub struct Clause {
+//     id : u64,
+//     lit_count : u16,
+//     activity : f64,
+//     literals : [core::Literal]
+// }
+//
+// However, allocating a Dynamically-sized Type (DST) in Rust is unsafe and
+// difficult, so we use slice_dst to do the heavy lifting for us. It ensures
+// that the header and slice are inlined in each object
+
+impl std::ops::Index<usize> for Clause {
+    type Output = core::Literal;
+
+    fn index(&self, num : usize) -> &Self::Output {
+        &self.0.slice[num]
+    }
+}
+
+impl constraint::Constraint for Clause {
+    fn unique_id(&self) -> u64 {
+        self.0.header.id
+    }
+
+    fn activity(&self) -> f64 {
+        self.0.header.activity
+    }
+
+    fn remove(&mut self, c : &dyn constraint::Constraint) {
+        if self.0.header.lit_count >= 1 {
+
+        }
+    }
+}
