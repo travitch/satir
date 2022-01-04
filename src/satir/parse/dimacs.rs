@@ -1,4 +1,3 @@
-use slice_dst::SliceWithHeader;
 use std::collections::BTreeMap;
 
 use combine::error::ParseError;
@@ -176,8 +175,8 @@ fn intern_lit(env : &mut Env, pl : &ParsedLit) -> core::Literal {
 }
 
 pub struct DIMACS {
-    next_var : core::Variable,
-    clauses : Vec<clause::Clause>
+    pub next_var : core::Variable,
+    pub clauses : Vec<clause::Clause>
 }
 
 pub fn parse_dimacs(input : &str) -> anyhow::Result<DIMACS> {
