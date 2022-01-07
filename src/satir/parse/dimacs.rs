@@ -8,6 +8,7 @@ use combine::parser::token;
 use combine::{Parser,Stream};
 
 use crate::satir::core;
+use crate::satir::core::Variable;
 use crate::satir::clause;
 
 /// A parser for whitespace between tokens
@@ -151,8 +152,8 @@ where
 
 fn to_core_lit(pl : &ParsedLit, cv : &core::Variable) -> core::Literal {
     match pl {
-        ParsedLit::PosLit(_) => core::to_positive_literal(&cv),
-        ParsedLit::NegLit(_) => core::to_negative_literal(&cv)
+        ParsedLit::PosLit(_) => cv.to_positive_literal(),
+        ParsedLit::NegLit(_) => cv.to_negative_literal()
     }
 }
 
@@ -167,7 +168,7 @@ fn intern_lit(env : &mut Env, pl : &ParsedLit) -> core::Literal {
         Some(cv) => to_core_lit(pl, cv),
         None => {
             let this_var = env.next_var;
-            env.next_var = core::next_variable(&this_var);
+            env.next_var = this_var.next_variable();
             env.var_map.insert(parsed_lit_var(pl), this_var);
             to_core_lit(pl, &this_var)
         }
@@ -183,7 +184,7 @@ pub fn parse_dimacs(input : &str) -> anyhow::Result<DIMACS> {
     let (res, _rest) = dimacs().parse(input)?;
     let mut env = Env {
         var_map : BTreeMap::new(),
-        next_var : core::FIRST_VARIABLE,
+        next_var : Variable::FIRST_VARIABLE,
         next_id : 0
     };
 

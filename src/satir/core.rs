@@ -1,6 +1,6 @@
 use crate::satir::tagged;
 
-#[derive(Clone,Copy,Debug)]
+#[derive(Clone,Copy,Debug,Eq,Ord,PartialEq,PartialOrd,Hash)]
 pub struct Variable(i32);
 
 #[derive(Clone,Copy,Debug,Eq,Ord,PartialEq,PartialOrd)]
@@ -25,56 +25,63 @@ impl tagged::TaggedIndexable for Literal {
     }
 }
 
-pub const FIRST_VARIABLE : Variable = Variable(0);
+impl Variable {
+    pub const FIRST_VARIABLE : Variable = Variable(0);
 
-pub fn next_variable(v : &Variable) -> Variable {
-    let Variable(num) = v;
-    Variable(num + 1)
+    pub fn next_variable(&self) -> Variable {
+        let Variable(num) = self;
+        Variable(num + 1)
+    }
+
+    pub fn to_positive_literal(&self) -> Literal {
+        let Variable(vnum) = self;
+        Literal(vnum << 1)
+    }
+
+    pub fn to_negative_literal(&self) -> Literal {
+        let Variable(vnum) = self;
+        Literal((vnum << 1) | 1)
+    }
 }
 
-pub fn to_positive_literal(v : &Variable) -> Literal {
-    let Variable(vnum) = v;
-    Literal(vnum << 1)
+impl Literal {
+    pub fn variable(&self) -> Variable {
+        let Literal(lnum) = self;
+        Variable(lnum >> 1)
+    }
+
+    pub fn is_negated(&self) -> bool {
+        let Literal(lnum) = self;
+        lnum & 1 == 0
+    }
+
+    pub fn negate(&self) -> Literal {
+        let Literal(lnum) = self;
+        Literal(lnum ^ 1)
+    }
+
+    pub fn under_value(&self, v : Value) -> Value {
+        let Literal(lval) = self;
+        let Value(val) = v;
+        Value(val ^ ((lval & 1) as i8))
+    }
+
+    pub fn satisfy(&self) -> Value {
+        let Literal(lval) = self;
+        Value((lval & 1) as i8)
+    }
 }
 
-pub fn to_negative_literal(v : &Variable) -> Literal {
-    let Variable(vnum) = v;
-    Literal((vnum << 1) | 1)
+impl Value {
+    pub const LIFTED_FALSE : Value = Value(1);
+    pub const LIFTED_TRUE : Value = Value(0);
+    pub const UNASSIGNED : Value = Value(2);
+
+    pub fn is_unassigned(&self) -> bool {
+        *self >= Value::UNASSIGNED
+    }
 }
 
-pub fn negate_literal(l : Literal) -> Literal {
-    let Literal(lnum) = l;
-    Literal(lnum ^ 1)
-}
-
-pub fn is_negated(l : Literal) -> bool {
-    let Literal(lnum) = l;
-    lnum & 1 == 0
-}
-
-pub fn variable(l : Literal) -> Variable {
-    let Literal(lnum) = l;
-    Variable(lnum >> 1)
-}
-
-pub fn lit_val(l : Literal, v : Value) -> Value {
-    let Literal(lval) = l;
-    let Value(val) = v;
-    Value(val ^ ((lval & 1) as i8))
-}
-
-pub fn satisfy_literal(l: Literal) -> Value {
-    let Literal(lval) = l;
-    Value((lval & 1) as i8)
-}
-
-pub const LIFTED_FALSE : Value = Value(1);
-pub const LIFTED_TRUE : Value = Value(0);
-pub const UNASSIGNED : Value = Value(2);
-
-pub fn is_unassigned(v : Value) -> bool {
-    v >= UNASSIGNED
-}
 
 pub enum Result {
     Unsat,

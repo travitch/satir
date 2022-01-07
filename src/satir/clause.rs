@@ -1,7 +1,8 @@
 use slice_dst;
 
-use crate::satir::core;
+use crate::satir::core::{Variable, Value, Literal};
 use crate::satir::constraint;
+use crate::satir::tagged::TaggedVec;
 
 /// Fixed-length clause metadata
 pub struct ClauseHeader {
@@ -17,19 +18,50 @@ pub struct ClauseHeader {
 /// that anyway because all constraints must be trait objects.
 ///
 /// Since the `Box` is always in this structure, we are able to have a Vec<Clause>
-pub struct Clause(Box<slice_dst::SliceWithHeader<ClauseHeader, core::Literal>>);
+///
+/// The key invariant of the `Clause` data type is that the first two literals
+/// are the watched literals.  Clauses with fewer than two literals are removed
+/// during preprocessing.
+pub struct Clause(Box<slice_dst::SliceWithHeader<ClauseHeader, Literal>>);
+
+pub enum PropagateResult {
+    Conflict,
+    NoConflict
+}
+
+fn lit_value(assignment : &TaggedVec<Variable, Value>, lit : &Literal) -> Value {
+    assignment[lit.variable()]
+}
 
 impl Clause {
     pub fn new<I>(head : ClauseHeader, lits : I) -> Self
     where
-        I : IntoIterator<Item = core::Literal>,
+        I : IntoIterator<Item = Literal>,
         I::IntoIter : ExactSizeIterator,
     {
         Clause(slice_dst::SliceWithHeader::new::<Box<_>, I>(head, lits).into())
     }
 
+    /// The number of active literals (i.e., non-deleted literals)
     pub fn lit_count(&self) -> usize {
         self.0.header.lit_count
+    }
+
+    pub fn propatate_units(&self, assignment : &TaggedVec<Variable, Value>, lit : &Literal) -> PropagateResult {
+        // There is a conflict if all of the literals in the clause evaluate to
+        // False
+        //
+        // If *any* literal is either True or Unassigned, there is no conflict yet
+        for idx in 0..self.lit_count() {
+            let val = self[idx].under_value(assignment[self[idx].variable()]);
+            if val == Value::LIFTED_FALSE {
+                continue;
+            }
+
+            return PropagateResult::NoConflict;
+        }
+
+        return PropagateResult::Conflict;
     }
 }
 
@@ -47,10 +79,16 @@ impl Clause {
 // that the header and slice are inlined in each object
 
 impl std::ops::Index<usize> for Clause {
-    type Output = core::Literal;
+    type Output = Literal;
 
     fn index(&self, num : usize) -> &Self::Output {
         &self.0.slice[num]
+    }
+}
+
+impl std::ops::IndexMut<usize> for Clause {
+    fn index_mut<'a>(&'a mut self, i : usize) -> &'a mut Literal {
+        &mut self.0.slice[i]
     }
 }
 
