@@ -77,7 +77,7 @@ where
      ).map(|(_, _)| ())
 }
 
-#[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Clone)]
+#[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Clone, Copy)]
 struct ParsedVar(u32);
 
 /// Literals parsed from DIMACS
@@ -85,7 +85,7 @@ struct ParsedVar(u32);
 /// Note that these are not necessarily sequential, so we need to map them to
 /// our internal sequential literals.  This new type helps ensure we keep the
 /// two separate
-#[derive(Debug, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Clone, Copy)]
 enum ParsedLit {
     PosLit(ParsedVar),
     NegLit(ParsedVar)
@@ -93,11 +93,10 @@ enum ParsedLit {
 
 fn parsed_lit_var(l : &ParsedLit) -> ParsedVar {
     match l {
-        ParsedLit::PosLit(v) => v.clone(),
-        ParsedLit::NegLit(v) => v.clone()
+        ParsedLit::PosLit(v) => *v,
+        ParsedLit::NegLit(v) => *v
     }
 }
-
 
 fn literal<Input>() -> impl Parser<Input, Output = ParsedLit>
 where
@@ -121,7 +120,9 @@ where
 {
     // Note the extra ship of 0 at the end; repeat_until does not consume the
     // token that causes it to stop
-    repeat::repeat_until(literal().skip(whitespace()), char::char('0')).skip(char::char('0'))
+    (choice::optional(whitespace()),
+     repeat::repeat_until(literal().skip(whitespace()), char::char('0')).skip(char::char('0'))
+     ).map(|(_, lits)| lits)
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -144,7 +145,7 @@ where
     (repeat::many::<Vec<_>, _, _>(comment().skip(line_end()).with(token::value(()))),
      problem().skip(line_end()),
      repeat::many::<Vec<_>, _, _>(comment().skip(line_end()).with(token::value(()))),
-     repeat::many1(clause().skip(choice::optional(line_end()))).skip(repeat::many::<Vec<_>, _, _>(line_end())),
+     repeat::many1(clause().skip(repeat::many::<Vec<_>, _, _>(line_end()))),
      token::eof()
     ).map(|(_, cnf, _, cs, _)| ParsedDIMACS { cnf_problem : cnf, clauses : cs })
 }
@@ -253,6 +254,18 @@ fn test_program_decl_extra_line_end() {
 #[test]
 fn test_clause() {
     let result = clause().parse("1 -5 \t11   2 0").map(|t| t.0);
+    let expected = vec![ParsedLit::PosLit(ParsedVar(1)),
+                        ParsedLit::NegLit(ParsedVar(5)),
+                        ParsedLit::PosLit(ParsedVar(11)),
+                        ParsedLit::PosLit(ParsedVar(2))
+    ];
+
+    assert_eq!(result, Ok(expected));
+}
+
+#[test]
+fn test_clause_leading_ws() {
+    let result = clause().parse("  1 -5 \t11   2 0").map(|t| t.0);
     let expected = vec![ParsedLit::PosLit(ParsedVar(1)),
                         ParsedLit::NegLit(ParsedVar(5)),
                         ParsedLit::PosLit(ParsedVar(11)),
