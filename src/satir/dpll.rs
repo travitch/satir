@@ -50,6 +50,13 @@ struct Env {
     statistics : Statistics
 }
 
+impl Env {
+    // Evaluate this literal with respect to the current assignment
+    fn value_of(&self, lit : Literal) -> Value {
+        lit.under_value(self.assignment[lit.variable()])
+    }
+}
+
 struct PreprocessResult {
     /// Variables with implied initial assignments
     initial_assignment : TaggedVec<Variable, Value>,
@@ -101,9 +108,34 @@ fn preprocess(clauses : &mut Vec<Clause>, next_var : &Variable) -> PreprocessRes
     pr
 }
 
+#[derive(Eq, PartialEq, Clone, Copy)]
 enum PropagateResult {
     Conflict,
     NoConflict
+}
+
+// Enqueue a literal, with some consistency checks to ensure that we don't
+// enqueue multiple times
+//
+// Note that this can detect a conflict if an earlier propagation at this
+// decision level enqueued a conflict.
+fn enqueue(env : &mut Env, lit : Literal) -> PropagateResult {
+    let val = env.value_of(lit);
+    if val == Value::UNASSIGNED {
+        // Assign immediately; note that we still enqueue because we have to
+        // propagate units still
+        env.decision_stack.push(lit);
+        env.assignment[lit.variable()] = lit.satisfy();
+        env.decision_queue.push_back(lit);
+        return PropagateResult::NoConflict;
+    } else {
+        if val == Value::LIFTED_FALSE {
+            return PropagateResult::Conflict;
+        } else {
+            // Already assigned, no need to re-enqueue
+            return PropagateResult::NoConflict;
+        }
+    }
 }
 
 /// Given the new decision `lit`, propagate units
@@ -126,7 +158,7 @@ fn propagate_units(env : &mut Env, lit : Literal) -> PropagateResult {
     // and establish a separate list of watchers of this literal.
     //
     // If we hit a conflict, we need to copy over the remaining former watchers
-    let watchers = std::mem::replace(&mut env.watchlist[lit.negate()], BTreeSet::new());
+    let watchers = std::mem::replace(&mut env.watchlist[false_lit], BTreeSet::new());
 
     // For each one of these, find a new watch
     //
@@ -142,8 +174,11 @@ fn propagate_units(env : &mut Env, lit : Literal) -> PropagateResult {
             cl[1] = false_lit;
         }
 
+        // let other_lit = cl[0];
         if cl[0].under_value(env.assignment[cl[0].variable()]) == Value::LIFTED_TRUE {
-            // The clause is satisfied - no need to update its watches
+            // The clause is satisfied - no need to update its watches (but we
+            // need to put the second watch back on cl[1])
+            env.watchlist[false_lit].insert(cl.identifier());
             continue;
         }
 
@@ -191,12 +226,24 @@ fn propagate_units(env : &mut Env, lit : Literal) -> PropagateResult {
             }
 
             env.statistics.conflicts += 1;
+            env.decision_queue.clear();
             return PropagateResult::Conflict;
         } else {
             // Otherwise, we found a unit clause and can just queue up the
             // literal required to satisfy it (and need to continue propagating
             // units)
-            env.decision_queue.push_back(cl[0]);
+            let enq_lit = cl[0];
+            let clause_id = cl.identifier();
+            if enqueue(env, enq_lit) == PropagateResult::Conflict {
+                env.watchlist[false_lit].insert(clause_id);
+                while let Some(clause_id) = idx_iter.next() {
+                    env.watchlist[false_lit].insert(*clause_id);
+                }
+
+                env.statistics.conflicts += 1;
+                env.decision_queue.clear();
+                return PropagateResult::Conflict;
+            }
         }
     }
 
@@ -208,13 +255,18 @@ fn propagate_units(env : &mut Env, lit : Literal) -> PropagateResult {
 /// This can be either an arbitrary choice or taken from a list of implied
 /// decisions (e.g., due to watched literals)
 fn next_decision(env : &mut Env) -> Option<Literal> {
-    match env.decision_queue.pop_front() {
-        None => {}
-        Some(l) => return Some(l)
+    // See if anything in the immediate queue is unassigned; it could be the
+    // case that something in here was actually assigned already
+    while let Some(l) = env.decision_queue.pop_front() {
+        if env.assignment[l.variable()] == Value::UNASSIGNED {
+            return Some(l);
+        }
     }
 
     // FIXME: Find some way to persist the priority so that we could restore it
     // if we re-add the variable to the decision queue
+    //
+    // Note: we can just use variable activity for this
     loop {
         match env.variable_order.pop() {
             Some((v, _)) => {
@@ -234,11 +286,37 @@ fn next_decision(env : &mut Env) -> Option<Literal> {
 /// This involves removing the assignment and undoing any relevant modifications
 /// made during unit propagation
 fn undo_last_decision(env : &mut Env) -> () {
-    unimplemented!()
+    match env.decision_stack.pop() {
+        None => {}
+        Some(l) => {
+            env.assignment[l.variable()] = Value::UNASSIGNED;
+            // FIXME: Choose a new priority (likely based on variable activity)
+            env.variable_order.push(l.variable(), OrderedFloat(0.0));
+        }
+    }
 }
 
+/// Assign a trivial and not particularly useful priority to each variable
+///
+/// The priority is based just on the order variables are encountered
 fn initial_variable_order(clauses : &Vec<Clause>) -> PriorityQueue<Variable, OrderedFloat<f32>> {
-    unimplemented!()
+    let mut priority = 0;
+    let mut q = PriorityQueue::new();
+    let mut seen = BTreeSet::new();
+    for c in clauses {
+        for idx in 0..c.lit_count() {
+            let v = c[idx].variable();
+            if seen.contains(&v) {
+                continue;
+            }
+
+            q.push(v, OrderedFloat(priority as f32));
+            priority += 1;
+            seen.insert(v);
+        }
+    }
+
+    q
 }
 
 /// Fill in the watchlist index; this must come after preprocessing, as we
@@ -322,15 +400,11 @@ pub fn solve(mut clauses : Vec<Clause>, next_var : Variable) -> core::Result {
             PropagateResult::Conflict => {
                 undo_last_decision(&mut env);
                 let next_lit = next_lit.negate();
-                propagate_units(&mut env, next_lit);
+                env.decision_queue.push_back(next_lit);
             }
         }
-        // FIXME: We need some way to try the other polarity of the
-        // variable. When backtracking, we can examine the decision stack and
-        // see if the decision was positive or negative. If it was positive, try
-        // the negative. Otherwise, roll back a level.
     }
 
 
-    unimplemented!()
+    return core::Result::Sat;
 }

@@ -68,23 +68,6 @@ impl Clause {
     pub fn identifier_mut(&mut self) -> &mut ClauseId {
         &mut self.0.header.id
     }
-
-    pub fn propatate_units(&self, assignment : &TaggedVec<Variable, Value>, lit : &Literal) -> PropagateResult {
-        // There is a conflict if all of the literals in the clause evaluate to
-        // False
-        //
-        // If *any* literal is either True or Unassigned, there is no conflict yet
-        for idx in 0..self.lit_count() {
-            let val = self[idx].under_value(assignment[self[idx].variable()]);
-            if val == Value::LIFTED_FALSE {
-                continue;
-            }
-
-            return PropagateResult::NoConflict;
-        }
-
-        return PropagateResult::Conflict;
-    }
 }
 
 // Note: Morally, `Clause` is this type:
