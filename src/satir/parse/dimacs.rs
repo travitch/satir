@@ -144,7 +144,7 @@ where
     (repeat::many::<Vec<_>, _, _>(comment().skip(line_end()).with(token::value(()))),
      problem().skip(line_end()),
      repeat::many::<Vec<_>, _, _>(comment().skip(line_end()).with(token::value(()))),
-     repeat::many1(clause().skip(choice::optional(line_end()))),
+     repeat::many1(clause().skip(choice::optional(line_end()))).skip(repeat::many::<Vec<_>, _, _>(line_end())),
      token::eof()
     ).map(|(_, cnf, _, cs, _)| ParsedDIMACS { cnf_problem : cnf, clauses : cs })
 }
@@ -288,3 +288,28 @@ c commentary\n\
     assert_eq!(result, Ok(expected));
 }
 
+#[test]
+fn test_dimacs_trailing_newline() {
+    let result = dimacs().parse("c Header\n\
+p cnf 5 2\n\
+c commentary\n\
+1 5 2 -1 0\n\
+-5 3 0\n\n").map(|t| t.0);
+    let expected = ParsedDIMACS {
+        cnf_problem : CNFProblem {
+            num_variables : 5,
+            num_clauses : 2
+        },
+        clauses : vec![
+            vec![ParsedLit::PosLit(ParsedVar(1)),
+                 ParsedLit::PosLit(ParsedVar(5)),
+                 ParsedLit::PosLit(ParsedVar(2)),
+                 ParsedLit::NegLit(ParsedVar(1))],
+            vec![ParsedLit::NegLit(ParsedVar(5)),
+                 ParsedLit::PosLit(ParsedVar(3))
+            ]
+        ]
+    };
+
+    assert_eq!(result, Ok(expected));
+}
