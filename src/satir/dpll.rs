@@ -1,4 +1,5 @@
 use std::collections::{BTreeSet, VecDeque};
+use ordered_float::OrderedFloat;
 use priority_queue::PriorityQueue;
 
 use crate::satir::core::{Literal, Variable, Value};
@@ -40,7 +41,7 @@ struct Env {
     /// The order to decide variables; note that this *can* be updated
     /// dynamically. Also note that the variables in this could potentially
     /// already be decided due to e.g., the watched literals queue
-    variable_order : PriorityQueue<Variable, u32>,
+    variable_order : PriorityQueue<Variable, OrderedFloat<f32>>,
     /// Literals that we must assert next due to findings (via two-watched
     /// literals) during unit propagation; these take priority over the natural
     /// variable ordering
@@ -236,7 +237,7 @@ fn undo_last_decision(env : &mut Env) -> () {
     unimplemented!()
 }
 
-fn initial_variable_order(clauses : &Vec<Clause>) -> PriorityQueue<Variable, u32> {
+fn initial_variable_order(clauses : &Vec<Clause>) -> PriorityQueue<Variable, OrderedFloat<f32>> {
     unimplemented!()
 }
 
@@ -289,8 +290,9 @@ pub fn solve(mut clauses : Vec<Clause>, next_var : Variable) -> core::Result {
     if pp_result.conflict_vars.len() > 0 {
         return core::Result::Unsat;
     }
+    // This is computed early just because we can't borrow it multiple times
+    // while constructing `Env`
     let init_var_order = initial_variable_order(&clauses);
-
     let numbered_clauses = intern_clauses(clauses);
 
     // NOTE: This must come after preprocessing since we require all clauses to
