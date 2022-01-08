@@ -1,5 +1,3 @@
-use crate::satir::core;
-
 /// The possible results of propagation
 pub enum PropagationResult {
     Conflict,
