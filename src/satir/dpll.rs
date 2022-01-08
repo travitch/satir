@@ -4,7 +4,6 @@ use priority_queue::PriorityQueue;
 use crate::satir::core::{Literal, Variable, Value};
 use crate::satir::core;
 use crate::satir::clause::{Clause, ClauseId};
-use crate::satir::tagged;
 use crate::satir::tagged::TaggedVec;
 
 /// Solver statistics tracked for reporting purposes
@@ -216,16 +215,11 @@ fn initialize_watchlist(clauses : &TaggedVec<ClauseId, Clause>,
     }
 }
 
-pub fn solve(mut clauses : Vec<Clause>, next_var : Variable) -> core::Result {
-    // If there is an obvious syntactic conflict, return early
-    //
-    // Those can arise if there are conflicting unit clauses, so propagate units
-    let pp_result = preprocess(&mut clauses, &next_var);
-    if pp_result.conflict_vars.len() > 0 {
-        return core::Result::Unsat;
-    }
-    let init_var_order = initial_variable_order(&clauses);
-
+/// Put our clauses into a `TaggedVec` with safer types
+///
+/// This allocates all of the `ClauseId`s, ensuring that each clause's
+/// `ClauseId` matches its index in the `TaggedVec`.
+fn intern_clauses(clauses : Vec<Clause>) -> TaggedVec<ClauseId, Clause> {
     // Ensure that the index of each clause matches its ClauseId (so that we can
     // maintain the watchlist index)
     let mut numbered_clauses = TaggedVec::new();
@@ -237,6 +231,21 @@ pub fn solve(mut clauses : Vec<Clause>, next_var : Variable) -> core::Result {
         *cl.identifier_mut() = clause_id;
         numbered_clauses.push(cl);
     }
+
+    numbered_clauses
+}
+
+pub fn solve(mut clauses : Vec<Clause>, next_var : Variable) -> core::Result {
+    // If there is an obvious syntactic conflict, return early
+    //
+    // Those can arise if there are conflicting unit clauses, so propagate units
+    let pp_result = preprocess(&mut clauses, &next_var);
+    if pp_result.conflict_vars.len() > 0 {
+        return core::Result::Unsat;
+    }
+    let init_var_order = initial_variable_order(&clauses);
+
+    let numbered_clauses = intern_clauses(clauses);
 
     // NOTE: This must come after preprocessing since we require all clauses to
     // have at least two literals
