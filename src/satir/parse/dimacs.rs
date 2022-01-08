@@ -160,7 +160,7 @@ fn to_core_lit(pl : &ParsedLit, cv : &core::Variable) -> core::Literal {
 struct Env {
     var_map : BTreeMap<ParsedVar, core::Variable>,
     next_var : core::Variable,
-    next_id : u64
+    next_id : i64
 }
 
 fn intern_lit(env : &mut Env, pl : &ParsedLit) -> core::Literal {
@@ -193,7 +193,7 @@ pub fn parse_dimacs(input : &str) -> anyhow::Result<DIMACS> {
     let mut clause_iter = res.clauses.iter();
     while let Some(parsed_clause) = clause_iter.next() {
         let hdr = clause::ClauseHeader {
-            id : env.next_id,
+            id : clause::ClauseId(env.next_id),
             lit_count : parsed_clause.len(),
             activity : 0.0
         };

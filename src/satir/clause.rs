@@ -1,12 +1,26 @@
 use slice_dst;
 
 use crate::satir::core::{Variable, Value, Literal};
-use crate::satir::constraint;
-use crate::satir::tagged::TaggedVec;
+use crate::satir::tagged::{TaggedIndexable, TaggedVec};
+
+/// The unique identifier for a clause
+///
+/// This is intended to be the index into the clause array that holds the
+/// `Clause`.  We need these indirect references because we can't have
+/// references to clauses (since we need to borrow them mutably in many places).
+#[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
+pub struct ClauseId(pub i64);
+
+impl TaggedIndexable for ClauseId {
+    fn as_index(&self) -> usize {
+        let ClauseId(i) = self;
+        *i as usize
+    }
+}
 
 /// Fixed-length clause metadata
 pub struct ClauseHeader {
-    pub id : u64,
+    pub id : ClauseId,
     pub lit_count : usize,
     pub activity : f64
 }
@@ -45,6 +59,14 @@ impl Clause {
     /// The number of active literals (i.e., non-deleted literals)
     pub fn lit_count(&self) -> usize {
         self.0.header.lit_count
+    }
+
+    pub fn identifier(&self) -> ClauseId {
+        self.0.header.id
+    }
+
+    pub fn identifier_mut(&mut self) -> &mut ClauseId {
+        &mut self.0.header.id
     }
 
     pub fn propatate_units(&self, assignment : &TaggedVec<Variable, Value>, lit : &Literal) -> PropagateResult {
@@ -92,18 +114,18 @@ impl std::ops::IndexMut<usize> for Clause {
     }
 }
 
-impl constraint::Constraint for Clause {
-    fn unique_id(&self) -> u64 {
-        self.0.header.id
-    }
+// impl constraint::Constraint for Clause {
+//     fn unique_id(&self) -> ClauseId {
+//         self.0.header.id
+//     }
 
-    fn activity(&self) -> f64 {
-        self.0.header.activity
-    }
+//     fn activity(&self) -> f64 {
+//         self.0.header.activity
+//     }
 
-    fn remove(&mut self, c : &dyn constraint::Constraint) {
-        if self.0.header.lit_count >= 1 {
+//     fn remove(&mut self, c : &dyn constraint::Constraint) {
+//         if self.0.header.lit_count >= 1 {
 
-        }
-    }
-}
+//         }
+//     }
+// }

@@ -3,7 +3,8 @@ use priority_queue::PriorityQueue;
 
 use crate::satir::core::{Literal, Variable, Value};
 use crate::satir::core;
-use crate::satir::clause::Clause;
+use crate::satir::clause::{Clause, ClauseId};
+use crate::satir::tagged;
 use crate::satir::tagged::TaggedVec;
 
 /// Solver statistics tracked for reporting purposes
@@ -26,7 +27,7 @@ fn empty_statistics() -> Statistics {
 
 struct Env {
     /// The original clauses of the problem
-    problem : Vec<Clause>,
+    problem : TaggedVec<ClauseId, Clause>,
     /// The decisions that have been made (in order)
     decision_stack : Vec<Literal>,
     /// The current assignment (which could be derived from the decision stack)
@@ -36,7 +37,7 @@ struct Env {
     ///
     /// NOTE: Because these are unadorned indexes, this will be a bit trickier
     /// once we learn (and delete) clauses.
-    watchlist : TaggedVec<Literal, BTreeSet<usize>>,
+    watchlist : TaggedVec<Literal, BTreeSet<ClauseId>>,
     /// The order to decide variables; note that this *can* be updated
     /// dynamically. Also note that the variables in this could potentially
     /// already be decided due to e.g., the watched literals queue
@@ -202,13 +203,16 @@ fn initial_variable_order(clauses : &Vec<Clause>) -> PriorityQueue<Variable, u32
 ///
 /// The convention is that the first two literals of each clause are watched, so
 /// build the reverse index based on the current literal ordering.
-fn initialize_watchlist(clauses : &Vec<Clause>, watch_index : &mut TaggedVec<Literal, BTreeSet<usize>>) {
-    for idx in 0..clauses.len() {
-        let cl = &clauses[idx];
+fn initialize_watchlist(clauses : &TaggedVec<ClauseId, Clause>,
+                        watch_index : &mut TaggedVec<Literal, BTreeSet<ClauseId>>)
+{
+    let mut clause_iter = clauses.iter();
+    while let Some(cl) = clause_iter.next() {
         watch_index.ensure_index(&cl[0], BTreeSet::new());
         watch_index.ensure_index(&cl[1], BTreeSet::new());
-        watch_index[cl[0]].insert(idx);
-        watch_index[cl[1]].insert(idx);
+        let cid = cl.identifier();
+        watch_index[cl[0]].insert(cid.clone());
+        watch_index[cl[1]].insert(cid.clone());
     }
 }
 
@@ -222,13 +226,25 @@ pub fn solve(mut clauses : Vec<Clause>, next_var : Variable) -> core::Result {
     }
     let init_var_order = initial_variable_order(&clauses);
 
+    // Ensure that the index of each clause matches its ClauseId (so that we can
+    // maintain the watchlist index)
+    let mut numbered_clauses = TaggedVec::new();
+    let mut clause_num = 0;
+    let mut clause_iter = clauses.into_iter();
+    while let Some(mut cl) = clause_iter.next() {
+        let clause_id = ClauseId(clause_num);
+        clause_num += 1;
+        *cl.identifier_mut() = clause_id;
+        numbered_clauses.push(cl);
+    }
+
     // NOTE: This must come after preprocessing since we require all clauses to
     // have at least two literals
     let mut watch_index = TaggedVec::new();
-    initialize_watchlist(&clauses, &mut watch_index);
+    initialize_watchlist(&numbered_clauses, &mut watch_index);
 
     let mut env = Env {
-        problem : clauses,
+        problem : numbered_clauses,
         decision_stack : Vec::new(),
         assignment : pp_result.initial_assignment,
         watchlist : TaggedVec::new(),

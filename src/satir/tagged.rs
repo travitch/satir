@@ -44,6 +44,10 @@ impl<I,T> TaggedVec<I,T> {
         }
     }
 
+    pub fn iter(&self) -> std::slice::Iter<'_, T> {
+        self.tagged_vec.iter()
+    }
+
     pub fn push(&mut self, t: T) -> () {
         self.tagged_vec.push(t);
     }
