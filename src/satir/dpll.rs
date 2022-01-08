@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, VecDeque};
 use priority_queue::PriorityQueue;
 
 use crate::satir::core::{Literal, Variable, Value};
@@ -41,6 +41,10 @@ struct Env {
     /// dynamically. Also note that the variables in this could potentially
     /// already be decided due to e.g., the watched literals queue
     variable_order : PriorityQueue<Variable, u32>,
+    /// Literals that we must assert next due to findings (via two-watched
+    /// literals) during unit propagation; these take priority over the natural
+    /// variable ordering
+    decision_queue : VecDeque<Literal>,
     /// Statistics from one run of the algorithm
     statistics : Statistics
 }
@@ -112,6 +116,9 @@ enum PropagateResult {
 ///
 /// 3. Recognize conflicts and initiate backtracking
 fn propagate_units(env : &mut Env, lit : Literal) -> PropagateResult {
+    // We are here because we decided `lit`, which means either l0 or l1 were
+    // watching ¬lit
+    let false_lit = lit.negate();
     // We need to iterate over the watchers; however, we also need to be able to
     // mutate the watch index as we find new watches, which requires
     // mutability. To do that, we take local ownership of this set of watchers
@@ -125,14 +132,18 @@ fn propagate_units(env : &mut Env, lit : Literal) -> PropagateResult {
     // After this, either we have found a new watch for every clause or there is
     // a conflict and we will backtrack (undoing this decision, so that we don't
     // need to undo any watches
-    //
-    // FIXME: We need to have each clause id be its index into the clause list
-    // so that we can remove clauses from the watchlist index
     let mut idx_iter = watchers.iter();
     while let Some(idx) = idx_iter.next() {
-        let cl = &mut env.problem[idx.clone()];
-        if cl[1] != lit {
+        env.statistics.propagations += 1;
+        let cl = &mut env.problem[*idx];
+        if cl[1] != false_lit {
             cl[0] = cl[1];
+            cl[1] = false_lit;
+        }
+
+        if cl[0].under_value(env.assignment[cl[0].variable()]) == Value::LIFTED_TRUE {
+            // The clause is satisfied - no need to update its watches
+            continue;
         }
 
         // Find a new literal to watch for cl[1], starting from cl[2]
@@ -147,14 +158,44 @@ fn propagate_units(env : &mut Env, lit : Literal) -> PropagateResult {
             let tmp_lit = cl[1];
             cl[1] = cl[lit_num];
             cl[lit_num] = tmp_lit;
+            // Add the new watch to the index (we don't need to remove this one
+            // from the index, as we started by obliterating the index)
+            //
+            // Note that we have to negate the literal, as we want to find a new
+            // watch when cl[1] is *not* satisfied.
+            env.watchlist[false_lit].insert(cl.identifier());
             found_watch = true;
+            break;
         }
 
-        if !found_watch {
-            // FIXME: Copy the remaining watched literals over into
-            // env.watchlist[lit.negate()], as we didn't update those watches
-            // before backtracking
+        // If there is nothing to watch *and* the other watch is UNASSIGNED, we
+        // must satisfy this clause by asserting that literal. We would add it
+        // to the queue.
+        //
+        // If the other literal is TRUE, that is okay; we can leave the watch
+        // dead (this clause is satisfied)
+        //
+        // If there is nothing to watch and the other watched literal is FALSE,
+        // we have a conflict
+        if found_watch {
+            continue;
+        }
+        if cl[0].under_value(env.assignment[cl[0].variable()]) == Value::LIFTED_FALSE {
+            // We did not find a watch and the other literal is false, so we
+            // have a conflict. Preserve the rest of the watches that we didn't
+            // update.
+            env.watchlist[false_lit].insert(cl.identifier());
+            while let Some(clause_id) = idx_iter.next() {
+                env.watchlist[false_lit].insert(*clause_id);
+            }
+
+            env.statistics.conflicts += 1;
             return PropagateResult::Conflict;
+        } else {
+            // Otherwise, we found a unit clause and can just queue up the
+            // literal required to satisfy it (and need to continue propagating
+            // units)
+            env.decision_queue.push_back(cl[0]);
         }
     }
 
@@ -165,14 +206,19 @@ fn propagate_units(env : &mut Env, lit : Literal) -> PropagateResult {
 ///
 /// This can be either an arbitrary choice or taken from a list of implied
 /// decisions (e.g., due to watched literals)
-fn next_decision_var(env : &mut Env) -> Option<Variable> {
+fn next_decision(env : &mut Env) -> Option<Literal> {
+    match env.decision_queue.pop_front() {
+        None => {}
+        Some(l) => return Some(l)
+    }
+
     // FIXME: Find some way to persist the priority so that we could restore it
     // if we re-add the variable to the decision queue
     loop {
         match env.variable_order.pop() {
             Some((v, _)) => {
                 if env.assignment[v] == Value::UNASSIGNED {
-                    return Some(v);
+                    return Some(v.to_positive_literal());
                 }
             }
             None => {
@@ -210,8 +256,8 @@ fn initialize_watchlist(clauses : &TaggedVec<ClauseId, Clause>,
         watch_index.ensure_index(&cl[0], BTreeSet::new());
         watch_index.ensure_index(&cl[1], BTreeSet::new());
         let cid = cl.identifier();
-        watch_index[cl[0]].insert(cid.clone());
-        watch_index[cl[1]].insert(cid.clone());
+        watch_index[cl[0]].insert(cid);
+        watch_index[cl[1]].insert(cid);
     }
 }
 
@@ -258,24 +304,22 @@ pub fn solve(mut clauses : Vec<Clause>, next_var : Variable) -> core::Result {
         assignment : pp_result.initial_assignment,
         watchlist : TaggedVec::new(),
         variable_order : init_var_order,
+        decision_queue : VecDeque::new(),
         statistics : empty_statistics()
     };
 
 
     // Next, decide and propagate units until we have completed the assignment
     // or exhausted our possible assignments
-    while let Some(next_var) = next_decision_var(&mut env) {
-        let next_lit = next_var.to_positive_literal();
+    while let Some(next_lit) = next_decision(&mut env) {
         match propagate_units(&mut env, next_lit) {
             PropagateResult::NoConflict => {
                 // No special action - decide an assignment for the next
                 // variable
             }
             PropagateResult::Conflict => {
-                // FIXME: Undo the last decision. If it was a positive literal,
-                // try the negative version. Otherwise, backtrack one more step
                 undo_last_decision(&mut env);
-                let next_lit = next_var.to_negative_literal();
+                let next_lit = next_lit.negate();
                 propagate_units(&mut env, next_lit);
             }
         }
