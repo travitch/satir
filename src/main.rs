@@ -17,8 +17,8 @@ fn main() -> anyhow::Result<()> {
     let dimacs = satirlib::satir::parse::dimacs::parse_dimacs(&contents)?;
     let res = satirlib::satir::dpll::solve(dimacs.clauses, dimacs.next_var);
     match res {
-        satirlib::satir::core::Result::Unsat => print!("unsat"),
-        satirlib::satir::core::Result::Sat => print!("sat")
+        satirlib::satir::core::Result::Unsat => print!("unsat\n"),
+        satirlib::satir::core::Result::Sat => print!("sat\n")
     };
 
     Ok(())
