@@ -1,11 +1,12 @@
 use std::collections::BTreeMap;
 
 use combine::error::ParseError;
+use combine::stream::position;
 use combine::parser::char;
 use combine::parser::choice;
 use combine::parser::repeat;
 use combine::parser::token;
-use combine::{Parser,Stream};
+use combine::{Parser,Stream,EasyParser};
 
 use crate::satir::core;
 use crate::satir::core::Variable;
@@ -181,8 +182,27 @@ pub struct DIMACS {
     pub clauses : Vec<clause::Clause>
 }
 
-pub fn parse_dimacs(input : &str) -> anyhow::Result<DIMACS> {
-    let (res, _rest) = dimacs().parse(input)?;
+#[derive(Debug, thiserror::Error)]
+enum Error<E> {
+    Io(std::io::Error),
+    Parse(E),
+}
+
+impl<E> std::fmt::Display for Error<E>
+where
+    E: std::fmt::Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {
+            Error::Io(ref err) => write!(f, "{}", err),
+            Error::Parse(ref err) => write!(f, "{}", err),
+        }
+    }
+}
+
+pub fn parse_dimacs<'a>(input : &'a str) -> anyhow::Result<DIMACS> {
+    let (res, _rest) = dimacs().easy_parse(position::Stream::new(input))
+        .map_err(|err| Error::Parse(err.map_range(|s| s.to_string())))?;
     let mut env = Env {
         var_map : BTreeMap::new(),
         next_var : Variable::FIRST_VARIABLE,
@@ -302,12 +322,39 @@ c commentary\n\
 }
 
 #[test]
+fn test_dimacs_empty_comment() {
+    let result = dimacs().parse("c Header\n\
+c\n\
+p cnf 5 2\n\
+c .commentary\n\
+1 5 2     -1 0\n\
+-5 3 0\n").map(|t| t.0);
+    let expected = ParsedDIMACS {
+        cnf_problem : CNFProblem {
+            num_variables : 5,
+            num_clauses : 2
+        },
+        clauses : vec![
+            vec![ParsedLit::PosLit(ParsedVar(1)),
+                 ParsedLit::PosLit(ParsedVar(5)),
+                 ParsedLit::PosLit(ParsedVar(2)),
+                 ParsedLit::NegLit(ParsedVar(1))],
+            vec![ParsedLit::NegLit(ParsedVar(5)),
+                 ParsedLit::PosLit(ParsedVar(3))
+            ]
+        ]
+    };
+
+    assert_eq!(result, Ok(expected));
+}
+
+#[test]
 fn test_dimacs_trailing_newline() {
     let result = dimacs().parse("c Header\n\
 p cnf 5 2\n\
 c commentary\n\
 1 5 2 -1 0\n\
--5 3 0\n\n").map(|t| t.0);
+-5 3 0\n\n\n").map(|t| t.0);
     let expected = ParsedDIMACS {
         cnf_problem : CNFProblem {
             num_variables : 5,
