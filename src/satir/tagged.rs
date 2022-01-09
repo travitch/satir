@@ -64,8 +64,8 @@ impl<I,T> TaggedVec<I,T> {
         T : Clone,
         I : TaggedIndexable
     {
-        if self.tagged_vec.len() < i.as_index() {
-            self.tagged_vec.resize(i.as_index(), t);
+        if self.tagged_vec.len() <= i.as_index() {
+            self.tagged_vec.resize(i.as_index() + 1, t);
         }
     }
 }
