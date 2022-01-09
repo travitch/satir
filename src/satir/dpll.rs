@@ -327,13 +327,15 @@ fn initial_variable_order(clauses : &Vec<Clause>) -> PriorityQueue<Variable, Ord
 ///
 /// The convention is that the first two literals of each clause are watched, so
 /// build the reverse index based on the current literal ordering.
-fn initialize_watchlist(clauses : &TaggedVec<ClauseId, Clause>,
+fn initialize_watchlist(next_var : &Variable,
+                        clauses : &TaggedVec<ClauseId, Clause>,
                         watch_index : &mut TaggedVec<Literal, BTreeSet<ClauseId>>)
 {
+    // First initialize empty watchlists for each literal, then fill in the
+    // active ones.
+    watch_index.ensure_index(std::cmp::max(&next_var.to_positive_literal(), &next_var.to_negative_literal()), BTreeSet::new());
     let mut clause_iter = clauses.iter();
     while let Some(cl) = clause_iter.next() {
-        watch_index.ensure_index(&cl[0], BTreeSet::new());
-        watch_index.ensure_index(&cl[1], BTreeSet::new());
         let cid = cl.identifier();
         watch_index[cl[0]].insert(cid);
         watch_index[cl[1]].insert(cid);
@@ -368,6 +370,7 @@ pub fn solve(mut clauses : Vec<Clause>, next_var : Variable) -> core::Result {
     if pp_result.conflict_vars.len() > 0 {
         return core::Result::Unsat;
     }
+
     // This is computed early just because we can't borrow it multiple times
     // while constructing `Env`
     let init_var_order = initial_variable_order(&clauses);
@@ -376,13 +379,13 @@ pub fn solve(mut clauses : Vec<Clause>, next_var : Variable) -> core::Result {
     // NOTE: This must come after preprocessing since we require all clauses to
     // have at least two literals
     let mut watch_index = TaggedVec::new();
-    initialize_watchlist(&numbered_clauses, &mut watch_index);
+    initialize_watchlist(&next_var, &numbered_clauses, &mut watch_index);
 
     let mut env = Env {
         problem : numbered_clauses,
         decision_stack : Vec::new(),
         assignment : pp_result.initial_assignment,
-        watchlist : TaggedVec::new(),
+        watchlist : watch_index,
         variable_order : init_var_order,
         decision_queue : VecDeque::new(),
         statistics : empty_statistics()
